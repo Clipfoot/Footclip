@@ -1,0 +1,24 @@
+{
+  "name": "Analyse Ton Match",
+  "short_name": "Ton Match",
+  "description": "Analyse deux équipes de football et obtiens une prédiction de score.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F2EA",
+  "theme_color": "#1B3A2D",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

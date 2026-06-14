@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1B3A2D" />
+  <title>Analyse Ton Match</title>
+  <link rel="manifest" href="/manifest.json" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap');
+    * { box-sizing: border-box; }
+    html, body, #root { margin: 0; padding: 0; min-height: 100%; }
+    body { font-family: 'Inter', sans-serif; background: #F5F2EA; }
+    .font-display { font-family: 'Anton', sans-serif; letter-spacing: 0.02em; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+const { useState } = React;
+
+const POSITIONS = ["V", "N", "D"]; // Victoire, Nul, Défaite (5 derniers matchs)
+
+const COMPETITIONS = [
+  "Ligue 1",
+  "Premier League",
+  "Liga",
+  "Serie A",
+  "Bundesliga",
+  "Champions League",
+  "Coupe du Monde",
+];
+
+function FormPicker({ form, setForm }) {
+  const toggle = (i) => {
+    const next = [...form];
+    const idx = POSITIONS.indexOf(next[i]);
+    next[i] = POSITIONS[(idx + 1) % POSITIONS.length];
+    setForm(next);
+  };
+  const colors = { V: "#1B3A2D", N: "#C9A227", D: "#B23A2E" };
+  return (
+    <div className="flex gap-1.5">
+      {form.map((r, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => toggle(i)}
+          className="w-8 h-8 rounded-sm flex items-center justify-center text-xs font-bold text-white transition-transform hover:scale-105"
+          style={{ backgroundColor: colors[r] }}
+          aria-label={`Match ${i + 1}: ${r}`}
+        >
+          {r}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TeamPanel({ side, data, setData }) {
+  const update = (field, value) => setData({ ...data, [field]: value });
+  return (
+    <div className="flex-1 bg-white rounded-md border border-[#1B3A2D]/10 p-5">
+      <div className="text-[10px] tracking-[0.25em] uppercase text-[#C9A227] font-bold mb-1">
+        {side === "home" ? "Équipe à domicile" : "Équipe à l'extérieur"}
+      </div>
+      <input
+        type="text"
+        placeholder="Nom de l'équipe"
+        value={data.name}
+        onChange={(e) => update("name", e.target.value)}
+        className="w-full text-2xl font-black text-[#1B3A2D] bg-transparent border-b-2 border-[#1B3A2D]/10 focus:border-[#C9A227] outline-none pb-1 mb-4 font-display"
+      />
+
+      <label className="block text-xs font-bold text-[#1B3A2D]/60 uppercase tracking-wide mb-1.5">
+        Forme (5 derniers matchs) — cliquer pour changer
+      </label>
+      <FormPicker form={data.form} setForm={(f) => update("form", f)} />
+
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        <div>
+          <label className="block text-xs font-bold text-[#1B3A2D]/60 uppercase tracking-wide mb-1.5">
+            Buts marqués/match
+          </label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            value={data.goalsFor}
+            onChange={(e) => update("goalsFor", e.target.value)}
+            className="w-full border border-[#1B3A2D]/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-[#C9A227]"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-[#1B3A2D]/60 uppercase tracking-wide mb-1.5">
+            Buts concédés/match
+          </label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            value={data.goalsAgainst}
+            onChange={(e) => update("goalsAgainst", e.target.value)}
+            className="w-full border border-[#1B3A2D]/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-[#C9A227]"
+          />
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <label className="block text-xs font-bold text-[#1B3A2D]/60 uppercase tracking-wide mb-1.5">
+          Classement (optionnel)
+        </label>
+        <input
+          type="number"
+          min="1"
+          value={data.rank}
+          onChange={(e) => update("rank", e.target.value)}
+          className="w-full border border-[#1B3A2D]/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-[#C9A227]"
+        />
+      </div>
+
+      <div className="mt-3">
+        <label className="block text-xs font-bold text-[#1B3A2D]/60 uppercase tracking-wide mb-1.5">
+          Infos complémentaires (blessures, absences, motivation...)
+        </label>
+        <textarea
+          rows={2}
+          value={data.notes}
+          onChange={(e) => update("notes", e.target.value)}
+          className="w-full border border-[#1B3A2D]/15 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-[#C9A227] resize-none"
+        />
+      </div>
+    </div>
+  );
+}
+
+const emptyTeam = () => ({
+  name: "",
+  form: ["V", "V", "N", "D", "V"],
+  goalsFor: "1.5",
+  goalsAgainst: "1.2",
+  rank: "",
+  notes: "",
+});
+
+async function callClaude(prompt, useWebSearch) {
+  const response = await fetch("/api/predict", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, useWebSearch }),
+  });
+  if (!response.ok) throw new Error("network");
+  const data = await response.json();
+  return data.text;
+}
+
+function extractJSON(text) {
+  const clean = text.replace(/```json|```/g, "").trim();
+  // Try to find the first { ... } or [ ... ] block
+  const start = clean.search(/[\[{]/);
+  const lastBrace = Math.max(clean.lastIndexOf("}"), clean.lastIndexOf("]"));
+  const slice = start >= 0 && lastBrace > start ? clean.slice(start, lastBrace + 1) : clean;
+  return JSON.parse(slice);
+}
+
+function App() {
+  const [tab, setTab] = useState("today"); // "today" | "manual"
+
+  const [home, setHome] = useState(emptyTeam());
+  const [away, setAway] = useState(emptyTeam());
+  const [competition, setCompetition] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
+  const [revealed, setRevealed] = useState(false);
+
+  // Today's matches
+  const [selectedComp, setSelectedComp] = useState(COMPETITIONS[0]);
+  const [matches, setMatches] = useState(null);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const [matchesError, setMatchesError] = useState("");
+
+  const canAnalyze = home.name.trim() && away.name.trim();
+
+  const fetchTodayMatches = async () => {
+    setMatchesLoading(true);
+    setMatchesError("");
+    setMatches(null);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const compLabel = selectedComp === "Coupe du Monde" ? "Coupe du Monde de la FIFA (édition en cours ou la plus proche)" : selectedComp;
+      const prompt = `Cherche sur le web la liste des matchs de football prévus aujourd'hui (${today}) en ${compLabel}. Si aucun match n'est prévu aujourd'hui dans cette compétition, indique-le.
+
+Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant/après, sans markdown, au format exact:
+{
+  "date": "${today}",
+  "competition": "${selectedComp}",
+  "matches": [
+    { "home": "<nom équipe domicile>", "away": "<nom équipe extérieur>", "time": "<heure ou ''>" }
+  ]
+}
+Si aucun match, renvoie "matches": [].`;
+
+      const text = await callClaude(prompt, true);
+      const parsed = extractJSON(text);
+      setMatches(parsed.matches || []);
+    } catch (e) {
+      setMatchesError("Impossible de récupérer les matchs du jour. Réessaie plus tard.");
+    } finally {
+      setMatchesLoading(false);
+    }
+  };
+
+  const selectMatch = (m) => {
+    setHome({ ...emptyTeam(), name: m.home });
+    setAway({ ...emptyTeam(), name: m.away });
+    setCompetition(selectedComp);
+    setTab("manual");
+    setResult(null);
+    setRevealed(false);
+  };
+
+  const buildPrompt = () => {
+    const describe = (t) =>
+      `${t.name} — forme (du plus ancien au plus récent): ${t.form.join("")}, moyenne buts marqués: ${t.goalsFor}/match, moyenne buts concédés: ${t.goalsAgainst}/match${t.rank ? `, classement: ${t.rank}e` : ""}${t.notes ? `, notes: ${t.notes}` : ""}.`;
+
+    return `Tu es un analyste de football expert. Si tu n'as pas assez d'informations sur ces équipes dans les données fournies, utilise tes connaissances générales et la recherche web pour compléter (forme récente réelle, blessures, contexte). Analyse ce match${competition ? ` (${competition})` : ""} entre ces deux équipes et donne une prédiction.
+
+Équipe à domicile: ${describe(home)}
+Équipe à l'extérieur: ${describe(away)}
+
+Réponds UNIQUEMENT avec un objet JSON valide, sans aucun texte avant ou après, sans balises markdown, au format exact suivant:
+{
+  "scoreHome": <nombre entier>,
+  "scoreAway": <nombre entier>,
+  "confidence": "<Faible|Moyenne|Élevée>",
+  "summary": "<résumé en 2-3 phrases en français expliquant la prédiction>",
+  "keyFactors": ["<facteur 1>", "<facteur 2>", "<facteur 3>"],
+  "probHome": <pourcentage de victoire domicile, nombre entier 0-100>,
+  "probDraw": <pourcentage de match nul, nombre entier 0-100>,
+  "probAway": <pourcentage de victoire extérieur, nombre entier 0-100>
+}`;
+  };
+
+  const analyze = async () => {
+    setLoading(true);
+    setError("");
+    setResult(null);
+    setRevealed(false);
+    try {
+      const text = await callClaude(buildPrompt(), true);
+      const parsed = extractJSON(text);
+      setResult(parsed);
+      setTimeout(() => setRevealed(true), 150);
+    } catch (e) {
+      setError("L'analyse n'a pas pu être effectuée. Vérifie les informations saisies et réessaie.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F5F2EA] flex flex-col items-center px-4 py-8 font-sans">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap');
+        .font-display { font-family: 'Anton', sans-serif; letter-spacing: 0.02em; }
+        .font-sans { font-family: 'Inter', sans-serif; }
+        @keyframes flip {
+          0% { transform: rotateX(90deg); opacity: 0; }
+          100% { transform: rotateX(0deg); opacity: 1; }
+        }
+        .flip-in { animation: flip 0.5s ease-out forwards; transform-origin: top; }
+      `}</style>
+
+      <div className="w-full max-w-3xl">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="text-[10px] tracking-[0.4em] uppercase text-[#C9A227] font-bold mb-2">
+            Feuille de match · Prédiction
+          </div>
+          <h1 className="font-display text-4xl sm:text-5xl text-[#1B3A2D]">
+            ANALYSE TON MATCH
+          </h1>
+          <p className="text-[#1B3A2D]/60 text-sm mt-2 max-w-md mx-auto">
+            Choisis un match du jour ou renseigne deux équipes manuellement pour obtenir une prédiction de score.
+          </p>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 justify-center">
+          <button
+            onClick={() => setTab("today")}
+            className={`font-display text-sm px-6 py-2 rounded-sm tracking-wide transition-colors ${
+              tab === "today" ? "bg-[#1B3A2D] text-[#F5F2EA]" : "bg-white text-[#1B3A2D]/60 border border-[#1B3A2D]/10"
+            }`}
+          >
+            MATCHS DU JOUR
+          </button>
+          <button
+            onClick={() => setTab("manual")}
+            className={`font-display text-sm px-6 py-2 rounded-sm tracking-wide transition-colors ${
+              tab === "manual" ? "bg-[#1B3A2D] text-[#F5F2EA]" : "bg-white text-[#1B3A2D]/60 border border-[#1B3A2D]/10"
+            }`}
+          >
+            SAISIE MANUELLE
+          </button>
+        </div>
+
+        {/* TODAY TAB */}
+        {tab === "today" && (
+          <div className="mb-8">
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
+              <select
+                value={selectedComp}
+                onChange={(e) => setSelectedComp(e.target.value)}
+                className="flex-1 bg-white border border-[#1B3A2D]/10 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A227]"
+              >
+                {COMPETITIONS.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <button
+                onClick={fetchTodayMatches}
+                disabled={matchesLoading}
+                className="font-display text-sm px-6 py-2.5 rounded-sm text-[#F5F2EA] tracking-wide disabled:opacity-40"
+                style={{ backgroundColor: "#1B3A2D" }}
+              >
+                {matchesLoading ? "RECHERCHE..." : "ACTUALISER"}
+              </button>
+            </div>
+
+            {matchesError && (
+              <div className="text-center text-[#B23A2E] text-sm mb-4">{matchesError}</div>
+            )}
+
+            {matches === null && !matchesLoading && !matchesError && (
+              <div className="text-center text-[#1B3A2D]/40 text-sm py-8 bg-white rounded-md border border-[#1B3A2D]/10">
+                Choisis une compétition puis clique sur "Actualiser" pour voir les matchs du jour.
+              </div>
+            )}
+
+            {matches !== null && matches.length === 0 && (
+              <div className="text-center text-[#1B3A2D]/40 text-sm py-8 bg-white rounded-md border border-[#1B3A2D]/10">
+                Aucun match prévu aujourd'hui en {selectedComp}.
+              </div>
+            )}
+
+            {matches !== null && matches.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {matches.map((m, i) => (
+                  <button
+                    key={i}
+                    onClick={() => selectMatch(m)}
+                    className="bg-white border border-[#1B3A2D]/10 rounded-md px-4 py-3 flex items-center justify-between hover:border-[#C9A227] transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-display text-base text-[#1B3A2D]">{m.home}</span>
+                      <span className="text-[#C9A227] text-sm font-bold">vs</span>
+                      <span className="font-display text-base text-[#1B3A2D]">{m.away}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {m.time && <span className="text-xs text-[#1B3A2D]/50">{m.time}</span>}
+                      <span className="text-xs font-bold text-[#C9A227] uppercase tracking-wide">Analyser →</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* MANUAL TAB */}
+        {tab === "manual" && (
+          <>
+            {/* Competition */}
+            <div className="mb-4">
+              <input
+                type="text"
+                placeholder="Compétition (optionnel) — ex: Ligue 1, Champions League..."
+                value={competition}
+                onChange={(e) => setCompetition(e.target.value)}
+                className="w-full bg-white border border-[#1B3A2D]/10 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A227]"
+              />
+            </div>
+
+            {/* Teams */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6 items-stretch">
+              <TeamPanel side="home" data={home} setData={setHome} />
+              <div className="flex items-center justify-center sm:py-0">
+                <div className="font-display text-3xl text-[#C9A227]">VS</div>
+              </div>
+              <TeamPanel side="away" data={away} setData={setAway} />
+            </div>
+
+            {/* Action */}
+            <div className="flex justify-center mb-8">
+              <button
+                onClick={analyze}
+                disabled={!canAnalyze || loading}
+                className="font-display text-lg px-10 py-3 rounded-sm text-[#F5F2EA] tracking-wide transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:translate-y-[-1px]"
+                style={{ backgroundColor: "#1B3A2D" }}
+              >
+                {loading ? "ANALYSE EN COURS..." : "PRÉDIRE LE SCORE"}
+              </button>
+            </div>
+
+            {error && (
+              <div className="text-center text-[#B23A2E] text-sm mb-6">{error}</div>
+            )}
+          </>
+        )}
+
+        {/* Result - Scoreboard */}
+        {result && (
+          <div
+            className={`bg-[#1B3A2D] rounded-md p-6 sm:p-8 text-[#F5F2EA] ${revealed ? "flip-in" : "opacity-0"}`}
+          >
+            <div className="text-center text-[10px] tracking-[0.4em] uppercase text-[#C9A227] font-bold mb-4">
+              Score prédit · Confiance {result.confidence}
+            </div>
+
+            <div className="flex items-center justify-center gap-4 sm:gap-8 mb-6">
+              <div className="flex-1 text-right">
+                <div className="font-display text-lg sm:text-2xl truncate">{home.name}</div>
+              </div>
+              <div className="flex items-center gap-3 bg-[#F5F2EA] text-[#1B3A2D] rounded-sm px-4 py-2">
+                <span className="font-display text-4xl sm:text-5xl">{result.scoreHome}</span>
+                <span className="font-display text-2xl text-[#C9A227]">–</span>
+                <span className="font-display text-4xl sm:text-5xl">{result.scoreAway}</span>
+              </div>
+              <div className="flex-1 text-left">
+                <div className="font-display text-lg sm:text-2xl truncate">{away.name}</div>
+              </div>
+            </div>
+
+            {/* Probabilities */}
+            <div className="mb-6">
+              <div className="flex h-2 rounded-full overflow-hidden mb-2">
+                <div style={{ width: `${result.probHome}%`, backgroundColor: "#C9A227" }} />
+                <div style={{ width: `${result.probDraw}%`, backgroundColor: "#F5F2EA40" }} />
+                <div style={{ width: `${result.probAway}%`, backgroundColor: "#B23A2E" }} />
+              </div>
+              <div className="flex justify-between text-xs text-[#F5F2EA]/80">
+                <span>{home.name || "Domicile"} {result.probHome}%</span>
+                <span>Nul {result.probDraw}%</span>
+                <span>{away.name || "Extérieur"} {result.probAway}%</span>
+              </div>
+            </div>
+
+            {/* Summary */}
+            <p className="text-sm text-[#F5F2EA]/90 leading-relaxed mb-4 text-center max-w-xl mx-auto">
+              {result.summary}
+            </p>
+
+            {/* Key factors */}
+            {result.keyFactors && (
+              <div className="border-t border-[#F5F2EA]/15 pt-4">
+                <div className="text-[10px] tracking-[0.3em] uppercase text-[#C9A227] font-bold mb-2 text-center">
+                  Facteurs clés
+                </div>
+                <ul className="space-y-1.5">
+                  {result.keyFactors.map((f, i) => (
+                    <li key={i} className="text-sm flex gap-2 justify-center text-center">
+                      <span className="text-[#C9A227]">—</span>
+                      <span className="text-[#F5F2EA]/85">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
